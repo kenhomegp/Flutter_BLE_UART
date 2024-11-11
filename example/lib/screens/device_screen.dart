@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import '../widgets/service_tile.dart';
@@ -28,7 +29,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
   bool _isDisconnecting = false;
 
   BluetoothCharacteristic? transparentCtrl;
-  BluetoothCharacteristic? transparentData;
+  BluetoothCharacteristic? transparentTx;
+  BluetoothCharacteristic? transparentRx;
+  BluetoothService? transparentService;
 
   late StreamSubscription<BluetoothConnectionState> _connectionStateSubscription;
   late StreamSubscription<bool> _isConnectingSubscription;
@@ -139,31 +142,48 @@ class _DeviceScreenState extends State<DeviceScreen> {
       _services = await widget.device.discoverServices();
       Snackbar.show(ABC.c, "Discover Services: Success", success: true);
 
-      /*
-      BluetoothService transparentService;
       if(!_services.isEmpty){
         print("Discover service. count = " + _services.length.toString());
         for(final service in _services){
           if(service.serviceUuid == Guid.fromString("49535343-FE7D-4AE5-8FA9-9FAFD205E455")){
             print("MCHP Transparent service found!");
             transparentService = service;
-            for(final char in transparentService.characteristics){
-                if(char.serviceUuid == Guid.fromString("49535343-4C8A-39B3-2F49-511CFF073B7E")){
-                  transparentCtrl = char;
+            if(transparentService?.characteristics != null){
+              print("Discover char. count = " + transparentService!.characteristics.length.toString());
+              for(final char in transparentService!.characteristics){
+                print("characteristic uuid = " + char.characteristicUuid.str);
+                /*if(char.characteristicUuid.str == "49535343-4c8a-39b3-2f49-511cff073b7e"){
                   print("Transparent control characteristic found!");
+                }*/
+                
+                if(char.characteristicUuid.str == "49535343-4c8a-39b3-2f49-511cff073b7e"){
+                  if(transparentCtrl == null){
+                    transparentCtrl = char;
+                    print("Transparent control characteristic found!");
+                  }
                 }
-                else if(char.serviceUuid == Guid.fromString("49535343-8841-43F4-A8D4-ECBE34729BB3")){
-                  transparentData = char;
-                  print("Transparent data characteristic found!");
+                else if(char.characteristicUuid.str == "49535343-8841-43f4-a8d4-ecbe34729bb3"){
+                  if(transparentTx == null){
+                    transparentTx = char;
+                    print("[Tx]Transparent data characteristic found!");
+                  }
                 }
-                if(transparentCtrl != null && transparentData != null){
+                else if(char.characteristicUuid.str == "49535343-1e4d-4bd9-ba61-23c647249616"){
+                  if(transparentRx == null){
+                    transparentRx = char;
+                    print("[Rx]Transparent data characteristic found!");
+                  }
+                }
+                
+                if(transparentCtrl != null && transparentTx != null){
                   break;
                 }
+              }
             }
             break;  
           }
         }
-      }*/
+      }
     } catch (e) {
       Snackbar.show(ABC.c, prettyException("Discover Services Error:", e), success: false);
     }
