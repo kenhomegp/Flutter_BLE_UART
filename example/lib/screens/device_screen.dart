@@ -10,6 +10,8 @@ import '../widgets/descriptor_tile.dart';
 import '../utils/snackbar.dart';
 import '../utils/extra.dart';
 
+import '../widgets/bleUart_tile.dart';
+
 class DeviceScreen extends StatefulWidget {
   final BluetoothDevice device;
 
@@ -152,9 +154,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
               print("Discover char. count = " + transparentService!.characteristics.length.toString());
               for(final char in transparentService!.characteristics){
                 print("characteristic uuid = " + char.characteristicUuid.str);
-                /*if(char.characteristicUuid.str == "49535343-4c8a-39b3-2f49-511cff073b7e"){
-                  print("Transparent control characteristic found!");
-                }*/
                 
                 if(char.characteristicUuid.str == "49535343-4c8a-39b3-2f49-511cff073b7e"){
                   if(transparentCtrl == null){
@@ -175,12 +174,11 @@ class _DeviceScreenState extends State<DeviceScreen> {
                   }
                 }
                 
-                if(transparentCtrl != null && transparentTx != null){
+                if(transparentCtrl != null && transparentTx != null && transparentRx != null){
                   break;
                 }
               }
             }
-            break;  
           }
         }
       }
@@ -204,22 +202,30 @@ class _DeviceScreenState extends State<DeviceScreen> {
       Snackbar.show(ABC.c, prettyException("Change Mtu Error:", e), success: false);
     }
   }
-
+  
   List<Widget> _buildMyServiceTile(BuildContext context, BluetoothDevice d) {
-    List<ServiceTile> myServiceTile = [];
-    for (final service in _services) {
+    //List<ServiceTile> myServiceTile = [];
+    List<BleUartTile> myServiceTile = [];
+    
+    /*for (final service in _services) {
       if (service.serviceUuid == Guid.fromString("49535343-FE7D-4AE5-8FA9-9FAFD205E455")) {
         print("MCHP Transparent service found!");
-        myServiceTile.add(ServiceTile(
-            service: service,
-            characteristicTiles: service.characteristics.map((c) => _buildCharacteristicTile(c)).toList()));
-        //return myServiceTile;
+        //myServiceTile.add(ServiceTile(
+        //    service: service,
+        //    characteristicTiles: service.characteristics.map((c) => _buildCharacteristicTile(c)).toList()));
         break;
       }
-    }
+      if(transparentCtrl != null && transparentTx != null && transparentRx != null){
+        myServiceTile.add(BleUartTile(service: transparentService!, transparentCtrl: transparentCtrl!, transparentTx: transparentTx!, transparentRx: transparentRx!));
+      }
+    }*/
+
+    if(transparentCtrl != null && transparentTx != null && transparentRx != null){
+        myServiceTile.add(BleUartTile(service: transparentService!, transparentCtrl: transparentCtrl!, transparentTx: transparentTx!, transparentRx: transparentRx!));
+      }
     return myServiceTile;
   }
-
+  /*
   List<Widget> _buildServiceTiles(BuildContext context, BluetoothDevice d) {
     return _services
         .map(
@@ -229,7 +235,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
           ),
         )
         .toList();
-  }
+  }*/
 
   CharacteristicTile _buildCharacteristicTile(BluetoothCharacteristic c) {
     return CharacteristicTile(
@@ -314,6 +320,11 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    bool serviceReady = false;
+    if(transparentCtrl != null && transparentTx != null && transparentRx != null){
+      serviceReady = true;
+    }
+
     return ScaffoldMessenger(
       key: Snackbar.snackBarKeyC,
       child: Scaffold(
@@ -331,6 +342,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
                 trailing: buildGetServices(context),
               ),
               buildMtuTile(context),
+              //BleUartTile(service:transparentService! , transparentCtrl: transparentCtrl!, transparentTx: transparentTx!, transparentRx: transparentRx!),
               //..._buildServiceTiles(context, widget.device),
               ..._buildMyServiceTile(context, widget.device),
             ],
