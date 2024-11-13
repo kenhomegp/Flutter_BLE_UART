@@ -144,37 +144,35 @@ class _DeviceScreenState extends State<DeviceScreen> {
       _services = await widget.device.discoverServices();
       Snackbar.show(ABC.c, "Discover Services: Success", success: true);
 
-      if(!_services.isEmpty){
+      if (!_services.isEmpty) {
         print("Discover service. count = " + _services.length.toString());
-        for(final service in _services){
-          if(service.serviceUuid == Guid.fromString("49535343-FE7D-4AE5-8FA9-9FAFD205E455")){
+        for (final service in _services) {
+          if (service.serviceUuid == Guid.fromString("49535343-FE7D-4AE5-8FA9-9FAFD205E455")) {
             print("MCHP Transparent service found!");
             transparentService = service;
-            if(transparentService?.characteristics != null){
+            if (transparentService?.characteristics != null) {
               print("Discover char. count = " + transparentService!.characteristics.length.toString());
-              for(final char in transparentService!.characteristics){
+              for (final char in transparentService!.characteristics) {
                 print("characteristic uuid = " + char.characteristicUuid.str);
-                
-                if(char.characteristicUuid.str == "49535343-4c8a-39b3-2f49-511cff073b7e"){
-                  if(transparentCtrl == null){
+
+                if (char.characteristicUuid.str == "49535343-4c8a-39b3-2f49-511cff073b7e") {
+                  if (transparentCtrl == null) {
                     transparentCtrl = char;
                     print("Transparent control characteristic found!");
                   }
-                }
-                else if(char.characteristicUuid.str == "49535343-8841-43f4-a8d4-ecbe34729bb3"){
-                  if(transparentTx == null){
+                } else if (char.characteristicUuid.str == "49535343-8841-43f4-a8d4-ecbe34729bb3") {
+                  if (transparentTx == null) {
                     transparentTx = char;
                     print("[Tx]Transparent data characteristic found!");
                   }
-                }
-                else if(char.characteristicUuid.str == "49535343-1e4d-4bd9-ba61-23c647249616"){
-                  if(transparentRx == null){
+                } else if (char.characteristicUuid.str == "49535343-1e4d-4bd9-ba61-23c647249616") {
+                  if (transparentRx == null) {
                     transparentRx = char;
                     print("[Rx]Transparent data characteristic found!");
                   }
                 }
-                
-                if(transparentCtrl != null && transparentTx != null && transparentRx != null){
+
+                if (transparentCtrl != null && transparentTx != null && transparentRx != null) {
                   break;
                 }
               }
@@ -202,11 +200,11 @@ class _DeviceScreenState extends State<DeviceScreen> {
       Snackbar.show(ABC.c, prettyException("Change Mtu Error:", e), success: false);
     }
   }
-  
+
   List<Widget> _buildMyServiceTile(BuildContext context, BluetoothDevice d) {
     //List<ServiceTile> myServiceTile = [];
     List<BleUartTile> myServiceTile = [];
-    
+
     /*for (final service in _services) {
       if (service.serviceUuid == Guid.fromString("49535343-FE7D-4AE5-8FA9-9FAFD205E455")) {
         print("MCHP Transparent service found!");
@@ -220,9 +218,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
       }
     }*/
 
-    if(transparentCtrl != null && transparentTx != null && transparentRx != null){
-        myServiceTile.add(BleUartTile(service: transparentService!, transparentCtrl: transparentCtrl!, transparentTx: transparentTx!, transparentRx: transparentRx!));
-      }
+    if (transparentCtrl != null && transparentTx != null && transparentRx != null) {
+      myServiceTile.add(BleUartTile(
+          service: transparentService!,
+          transparentCtrl: transparentCtrl!,
+          transparentTx: transparentTx!,
+          transparentRx: transparentRx!));
+    }
     return myServiceTile;
   }
   /*
@@ -320,11 +322,6 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool serviceReady = false;
-    if(transparentCtrl != null && transparentTx != null && transparentRx != null){
-      serviceReady = true;
-    }
-
     return ScaffoldMessenger(
       key: Snackbar.snackBarKeyC,
       child: Scaffold(

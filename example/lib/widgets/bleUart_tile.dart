@@ -12,8 +12,14 @@ class BleUartTile extends StatefulWidget {
   final BluetoothCharacteristic transparentCtrl;
   final BluetoothCharacteristic transparentTx;
   final BluetoothCharacteristic transparentRx;
-  
-  const BleUartTile({Key? key, required this.service, required this.transparentCtrl, required this.transparentTx, required this.transparentRx}) : super(key: key);
+
+  const BleUartTile(
+      {Key? key,
+      required this.service,
+      required this.transparentCtrl,
+      required this.transparentTx,
+      required this.transparentRx})
+      : super(key: key);
 
   @override
   State<BleUartTile> createState() => _BleUartTileState();
@@ -25,14 +31,14 @@ class _BleUartTileState extends State<BleUartTile> {
   List<int> _value = [];
   List<int> _txValue = [];
   List<int> _rxValue = [];
-  
+
   late StreamSubscription<List<int>> _lastCommandSubscription;
   late StreamSubscription<List<int>> _lastTxValueSubscription;
   late StreamSubscription<List<int>> _lastRxValueSubscription;
 
   var initialState = bleUARTState.FlowControl;
 
-  int _credit = 0x05;
+  int _credit = 0x00;
 
   @override
   void initState() {
@@ -79,20 +85,19 @@ class _BleUartTileState extends State<BleUartTile> {
         }
       }
       //_value.map((i) => i.toRadixString(16)).toList();
-      
     });
 
     _lastTxValueSubscription = widget.transparentTx.lastValueStream.listen((value) {
       _txValue = value;
       if (widget.transparentTx.characteristicUuid.str == "49535343-8841-43f4-a8d4-ecbe34729bb3") {
-          print("BleUart_Tx. DidWriteCharacteristic");
+        print("BleUart_Tx. DidWriteCharacteristic");
       }
     });
 
     _lastRxValueSubscription = widget.transparentRx.lastValueStream.listen((value) {
       _rxValue = value;
       if (widget.transparentTx.characteristicUuid.str == "49535343-1e4d-4bd9-ba61-23c647249616") {
-          print("BleUart_Rx.");
+        print("BleUart_Rx.");
       }
     });
 
@@ -115,20 +120,89 @@ class _BleUartTileState extends State<BleUartTile> {
   }
 
   BluetoothCharacteristic get c => widget.transparentCtrl;
+  BluetoothCharacteristic get d => widget.transparentRx;
+  BluetoothCharacteristic get e => widget.transparentTx;
 
-  Future onSubscribePressed() async {
+  Future onSubscribePressed(BluetoothCharacteristic char) async {
     try {
-      String op = c.isNotifying == false ? "Subscribe" : "Unubscribe";
-      await c.setNotifyValue(c.isNotifying == false);
+      String op = char.isNotifying == false ? "Subscribe" : "Unubscribe";
+      await char.setNotifyValue(char.isNotifying == false);
+      print("Subscribe.success");
       //Snackbar.show(ABC.c, "$op : Success", success: true);
-      if (c.properties.read) {
-        await c.read();
+      if (char.properties.read) {
+        await char.read();
       }
       if (mounted) {
         setState(() {});
       }
     } catch (e) {
       //Snackbar.show(ABC.c, prettyException("Subscribe Error:", e), success: false);
+      print(e);
+    }
+  }
+
+  Future<void> splitWrite(BluetoothCharacteristic char, List<int> value, {int timeout = 15}) async {
+    int chunk = min(c.device.mtuNow - 3, 512);
+    //credit = 10;
+    print("SplitWrite. credit = " + _credit.toString());
+    while (totalWrite < value.length) {
+      if (_credit > 0) {
+        List<int> subvalue = value.sublist(totalWrite, min(totalWrite + chunk, value.length));
+        print("splitWrite len = " + subvalue.length.toString());
+        await char.write(subvalue, withoutResponse: true, timeout: timeout);
+        if (subvalue.length == chunk) {
+          totalWrite += chunk;
+        } else {
+          totalWrite += subvalue.length;
+        }
+
+        _credit -= 1;
+        print("totalWrite = " + totalWrite.toString());
+        print(_credit);
+      } else {
+        print("Credit is zero!");
+        break;
+      }
+    }
+    print("splitWrite is completed.");
+  }
+
+  Future onWritePressed(BluetoothCharacteristic char) async {
+    try {
+      if (char.characteristicUuid == Guid.fromString("49535343-4C8A-39B3-2F49-511CFF073B7E")) {
+        if (initialState == bleUARTState.FlowControl) {
+          print("Enable ReliableBurstTransmit. command=0x14");
+          await char.write([20], withoutResponse: char.properties.write);
+          //Snackbar.show(ABC.c, "Enable ReliableBurstTransmit", success: true);
+        } else if (initialState == bleUARTState.UartEnable) {
+          print("Send UART mode command");
+          await char.write([0x80, 0x04, 0x01], withoutResponse: c.properties.write);
+          //Snackbar.show(ABC.c, "UART mode enable", success: true);
+        } else if (initialState == bleUARTState.TRP) {
+          print("TRP mode");
+          await char.write([0x80, 0x05, 0x04, 0x01], withoutResponse: c.properties.write);
+          //Snackbar.show(ABC.c, "Send TRP command", success: true);
+        } else if (initialState == bleUARTState.Complete) {
+          print("Initial complete. credit = " + _credit.toString());
+        }
+      } else {
+        if (char.characteristicUuid == Guid.fromString("49535343-8841-43F4-A8D4-ECBE34729BB3")) {
+          CreateTestFile();
+          print("Send 1k.txt");
+          totalWrite = 0;
+          //await c.splitWrite(growableList);
+          await splitWrite(char, growableList);
+        }
+
+        //Snackbar.show(ABC.c, "Write: Success", success: true);
+      }
+
+      if (char.properties.read) {
+        await char.read();
+      }
+    } catch (e) {
+      //Snackbar.show(ABC.c, prettyException("Write Error:", e), success: false);
+      print("Write error");
     }
   }
 
@@ -139,7 +213,7 @@ class _BleUartTileState extends State<BleUartTile> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        const Text('MCHP Transparent Service', style: TextStyle(color: Colors.blue)),
+        const Text('BLE UART Demo', style: TextStyle(color: Colors.blue)),
         ListTile(
           title: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -150,26 +224,50 @@ class _BleUartTileState extends State<BleUartTile> {
               Text(_value.toString(), style: TextStyle(fontSize: 13, color: Colors.grey))
             ],
           ),
-          subtitle: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextButton(onPressed: () async {
-                await onSubscribePressed();
-                if (mounted) {
-                setState(() {});
-                }
-              }, 
-              child: Text(isNotifying ? "Unsubscribe" : "Subscribe"))
-            ]),
+          subtitle: Row(mainAxisSize: MainAxisSize.min, children: [
+            TextButton(
+                onPressed: () async {
+                  await onWritePressed(c);
+                  if (mounted) {
+                    setState(() {});
+                  }
+                },
+                child: Text("Write")),
+            TextButton(
+                onPressed: () async {
+                  await onSubscribePressed(c);
+                  if (mounted) {
+                    setState(() {});
+                  }
+                },
+                child: Text(isNotifying ? "Unsubscribe" : "Subscribe"))
+          ]),
           contentPadding: const EdgeInsets.all(0.0),
         ),
-
+        ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text("MCHP_Transparent_Tx"),
+              Text(widget.transparentTx.uuid.str, style: TextStyle(fontSize: 13)),
+              Text(_txValue.toString(), style: TextStyle(fontSize: 13, color: Colors.grey))
+            ],
+          ),
+          subtitle: Row(mainAxisSize: MainAxisSize.min, children: [
+            TextButton(
+                onPressed: () async {
+                  await onWritePressed(e);
+                  if (mounted) {
+                    setState(() {});
+                  }
+                },
+                child: Text("WriteFile")),
+          ]),
+          contentPadding: const EdgeInsets.all(0.0),
+        ),
       ],
     );
-    /*return ListTile(
-            title: const Text('Service'),
-            subtitle: buildUuid(context),
-          );*/      
   }
 
   final growableList = <int>[];
@@ -183,8 +281,6 @@ class _BleUartTileState extends State<BleUartTile> {
     //8334,100k.txt
     //41667,500k.txt
 
-    //final growableList = <int>[];
-
     growableList.clear();
 
     for (int i = 0; i < k; i++) {
@@ -194,7 +290,5 @@ class _BleUartTileState extends State<BleUartTile> {
       growableList.addAll((i + 1).toString().codeUnits);
       growableList.addAll([0x0d, 0x0a]);
     }
-
-    //return growableList;
   }
 }
