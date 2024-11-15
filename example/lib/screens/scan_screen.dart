@@ -65,7 +65,7 @@ class _ScanScreenState extends State<ScanScreen> {
       //await FlutterBluePlus.startScan(timeout: const Duration(seconds: 15));
       //print("onScanPressed");
 
-      await FlutterBluePlus.startScan(withNames: ["BLE_UART_CDDF"], timeout: const Duration(seconds: 15));
+      await FlutterBluePlus.startScan(withNames: ["BLE_UART_CDDF", "MBD_PERIPHERAL"], timeout: const Duration(seconds: 5));
       //await FlutterBluePlus.startScan(withNames: ["MBD_PERIPHERAL"], timeout: const Duration(seconds: 15));
       print("onScanPressedwithNames ");
 

@@ -12,6 +12,8 @@ import '../utils/extra.dart';
 
 import '../widgets/bleUart_tile.dart';
 
+import 'dart:io' show Platform;
+
 class DeviceScreen extends StatefulWidget {
   final BluetoothDevice device;
 
@@ -49,7 +51,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
       if (state == BluetoothConnectionState.connected) {
         print("DeviceScreen. Connected");
         _services = []; // must rediscover services
-        Timer(Duration(seconds: 3), () {
+
+        if(Platform.isAndroid){
+          print("Detected platform: Android");
+          onRequestMtuPressed();
+        }
+
+        Timer(Duration(seconds: 1), () {
           print("[3]DiscoverServices");
           onDiscoverServicesPressed();
         });
