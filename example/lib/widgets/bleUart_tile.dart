@@ -113,10 +113,11 @@ class _BleUartTileState extends State<BleUartTile> {
       //}
     });
 
-    _lastRxValueSubscription = widget.transparentRx.lastValueStream.listen((value) {
-      _rxValue = value;
-      if (widget.transparentTx.characteristicUuid.str == "49535343-1e4d-4bd9-ba61-23c647249616") {
-        print("BleUart_Rx.");
+    //_lastRxValueSubscription = widget.transparentRx.lastValueStream.listen((value) {
+    _lastRxValueSubscription = widget.transparentRx.onValueReceived.listen((value) {
+      _rxValue += value;
+      if (widget.transparentRx.characteristicUuid.str == "49535343-1e4d-4bd9-ba61-23c647249616") {
+        print("BleUart_Rx. onValueReceived.len = " + _rxValue.length.toString());
         if (mounted) {
           setState(() {});
         }
@@ -263,14 +264,34 @@ class _BleUartTileState extends State<BleUartTile> {
     }
   }
 
+  void onClearBleData(){
+    print("Clear ble data");
+    totalWrite = 0;
+    _rxValue.clear();
+    _txValue.clear();
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    bool isNotifying = c.isNotifying;
+    bool c_isNotifying = c.isNotifying;
+    bool d_isNotifying = d.isNotifying;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        const Text('BLE UART Demo', style: TextStyle(color: Colors.blue)),
+        //const Text('BLE UART Demo', style: TextStyle(color: Colors.blue)),
+        ListTile(
+        title: const Text('BLE UART Demo'),
+        titleTextStyle: TextStyle(color: Colors.blue),
+        trailing: IconButton(
+          icon: const Icon(Icons.settings),
+          onPressed: onClearBleData,
+        )),
         ListTile(
           title: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -297,7 +318,7 @@ class _BleUartTileState extends State<BleUartTile> {
                     setState(() {});
                   }
                 },
-                child: Text(isNotifying ? "Unsubscribe" : "Subscribe"))
+                child: Text(c_isNotifying ? "Unsubscribe" : "Subscribe"))
           ]),
           contentPadding: const EdgeInsets.all(0.0),
         ),
@@ -324,12 +345,35 @@ class _BleUartTileState extends State<BleUartTile> {
           ]),
           contentPadding: const EdgeInsets.all(0.0),
         ),
+        ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text("MCHP_Transparent_Rx"),
+              Text(widget.transparentRx.uuid.str, style: TextStyle(fontSize: 13)),
+              Text(_rxValue.length.toString(), style: TextStyle(fontSize: 13, color: Colors.grey))
+            ],
+          ),
+          subtitle: Row(mainAxisSize: MainAxisSize.min, children: [
+            TextButton(
+                onPressed: () async {
+                  await onSubscribePressed(d);
+                  if (mounted) {
+                    setState(() {});
+                  }
+                },
+                child: Text(d_isNotifying ? "Unsubscribe" : "Subscribe"))
+          ]),
+          contentPadding: const EdgeInsets.all(0.0),
+        )
       ],
     );
   }
 
   final growableList = <int>[];
   int totalWrite = 0;
+  int totalRead = 0;
 
   void CreateTestFile() {
     int k = 50;
