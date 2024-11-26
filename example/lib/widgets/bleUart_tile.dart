@@ -27,7 +27,7 @@ class BleUartTile extends StatefulWidget {
   State<BleUartTile> createState() => _BleUartTileState();
 }
 
-enum bleUARTState { FlowControl, UartEnable, TRP, Complete }
+enum bleUARTState { FlowControl, UartEnable, TRP, Start, Complete }
 
 class _BleUartTileState extends State<BleUartTile> {
   List<int> _value = [];
@@ -63,12 +63,19 @@ class _BleUartTileState extends State<BleUartTile> {
             if(eq(_value, [0x14])){
               print("0x14 command complete. credit= " + _credit.toString());
             }
-            else if (eq(_value, [0x80, 0x04, 0x01])) {
-              print("0x80,0x04,0x01 command complete. credit= " + _credit.toString());
+            else if ((eq(_value, [0x80, 0x04, 0x01])) || (eq(_value, [0x80, 0x02, 0x01]))) {
+              //print("0x80,0x04,0x01 command complete. credit= " + _credit.toString());
+              print("BLE UART command complete. credit= " + _credit.toString());
               initialState = bleUARTState.TRP;
               onWritePressed(c);
             } else if (eq(_value, [0x80, 0x05, 0x04, 0x01])) {
               print("0x80,0x05,0x04,0x01 command complete. credit = " + _credit.toString());
+              //initialState = bleUARTState.Complete;
+              initialState = bleUARTState.Start;
+              onWritePressed(c);
+            }
+            else if (eq(_value, [0x80, 0x05, 0x01])) {
+              print("0x80,0x05,0x01 command complete. credit = " + _credit.toString());
               initialState = bleUARTState.Complete;
             }
           }
@@ -230,18 +237,27 @@ class _BleUartTileState extends State<BleUartTile> {
       if (char.characteristicUuid == Guid.fromString("49535343-4C8A-39B3-2F49-511CFF073B7E")) {
         if (initialState == bleUARTState.FlowControl) {
           print("Enable ReliableBurstTransmit. command=0x14");
-          await char.write([20], withoutResponse: char.properties.write);
+          await char.write([0x14], withoutResponse: char.properties.write);
           Snackbar.show(ABC.c, "Enable ReliableBurstTransmit", success: true);
         } else if (initialState == bleUARTState.UartEnable) {
+          /*
           print("Send UART mode command");
           await char.write([0x80, 0x04, 0x01], withoutResponse: c.properties.write);
-          Snackbar.show(ABC.c, "UART mode enable", success: true);
+          */
+          print("Send Loopback mode command");
+          await char.write([0x80, 0x02, 0x01], withoutResponse: c.properties.write);
+          //Snackbar.show(ABC.c, "UART mode enable", success: true);
+          Snackbar.show(ABC.c, "Loopback mode enable", success: true);
         } else if (initialState == bleUARTState.TRP) {
           print("TRP mode");
           await char.write([0x80, 0x05, 0x04, 0x01], withoutResponse: c.properties.write);
           Snackbar.show(ABC.c, "Send TRP command", success: true);
         } else if (initialState == bleUARTState.Complete) {
           print("Initial complete. credit = " + _credit.toString());
+        } else if (initialState == bleUARTState.Start) {
+          print("Data start");
+          await char.write([0x80, 0x05, 0x01], withoutResponse: c.properties.write);
+          Snackbar.show(ABC.c, "Data start ", success: true);
         }
       } else {
         if (char.characteristicUuid == Guid.fromString("49535343-8841-43F4-A8D4-ECBE34729BB3")) {
@@ -377,8 +393,8 @@ class _BleUartTileState extends State<BleUartTile> {
 
   void CreateTestFile() {
     int k = 50;
-    //k = 8334;
-    k = 41667;
+    k = 8334;
+    //k = 41667;
     //50,1k.txt
     //834,10k.txt
     //8334,100k.txt
