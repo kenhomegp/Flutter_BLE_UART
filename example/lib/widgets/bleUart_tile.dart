@@ -29,6 +29,8 @@ class BleUartTile extends StatefulWidget {
 
 enum bleUARTState { FlowControl, UartEnable, TRP, Start, Complete }
 
+enum bleUARTMode { UART, LoopBack}
+
 class _BleUartTileState extends State<BleUartTile> {
   List<int> _value = [];
   List<int> _txValue = [];
@@ -39,6 +41,8 @@ class _BleUartTileState extends State<BleUartTile> {
   late StreamSubscription<List<int>> _lastRxValueSubscription;
 
   var initialState = bleUARTState.FlowControl;
+
+  var mode = bleUARTMode.LoopBack;
 
   int _credit = 0x00;
 
@@ -70,8 +74,12 @@ class _BleUartTileState extends State<BleUartTile> {
               onWritePressed(c);
             } else if (eq(_value, [0x80, 0x05, 0x04, 0x01])) {
               print("0x80,0x05,0x04,0x01 command complete. credit = " + _credit.toString());
-              //initialState = bleUARTState.Complete;
-              initialState = bleUARTState.Start;
+              if(mode == bleUARTMode.UART){
+                initialState = bleUARTState.Complete;
+              }
+              else{
+                initialState = bleUARTState.Start;
+              }
               onWritePressed(c);
             }
             else if (eq(_value, [0x80, 0x05, 0x01])) {
@@ -83,7 +91,7 @@ class _BleUartTileState extends State<BleUartTile> {
           if (_value.length == 5 && _value[0] != 0x80) {
             //if (!flowControl) {
             if (initialState == bleUARTState.FlowControl) {
-              if (_value[0] == 0 && _value[1] == 20) {
+              if (_value[0] == 0 && _value[1] == 0x14) {
                 //flowControl = true;
                 _credit = _value[4];
                 initialState = bleUARTState.UartEnable;
@@ -240,15 +248,17 @@ class _BleUartTileState extends State<BleUartTile> {
           await char.write([0x14], withoutResponse: char.properties.write);
           Snackbar.show(ABC.c, "Enable ReliableBurstTransmit", success: true);
         } else if (initialState == bleUARTState.UartEnable) {
-          /*
-          print("Send UART mode command");
-          await char.write([0x80, 0x04, 0x01], withoutResponse: c.properties.write);
-          */
-          print("Send Loopback mode command");
-          await char.write([0x80, 0x02, 0x01], withoutResponse: c.properties.write);
-          //Snackbar.show(ABC.c, "UART mode enable", success: true);
-          Snackbar.show(ABC.c, "Loopback mode enable", success: true);
-        } else if (initialState == bleUARTState.TRP) {
+          if(mode == bleUARTMode.UART){
+            print("Send UART mode command");
+            await char.write([0x80, 0x04, 0x01], withoutResponse: c.properties.write);
+            Snackbar.show(ABC.c, "UART mode enable", success: true);
+          }else{
+            print("Send Loopback mode command");
+            await char.write([0x80, 0x02, 0x01], withoutResponse: c.properties.write);
+            Snackbar.show(ABC.c, "Loopback mode enable", success: true);
+          }
+        }
+        else if (initialState == bleUARTState.TRP) {
           print("TRP mode");
           await char.write([0x80, 0x05, 0x04, 0x01], withoutResponse: c.properties.write);
           Snackbar.show(ABC.c, "Send TRP command", success: true);
@@ -261,7 +271,7 @@ class _BleUartTileState extends State<BleUartTile> {
         }
       } else {
         if (char.characteristicUuid == Guid.fromString("49535343-8841-43F4-A8D4-ECBE34729BB3")) {
-          CreateTestFile();
+          CreateTestFile(lastNum: lastNumber);
           print("Send 1k.txt");
           totalWrite = 0;
           //await c.splitWrite(growableList);
@@ -296,18 +306,105 @@ class _BleUartTileState extends State<BleUartTile> {
     bool c_isNotifying = c.isNotifying;
     bool d_isNotifying = d.isNotifying;
 
+    String config = "";
+    String tmp = "BLE UART Setting: ";
+    //if(lastNumber == 8334)
+    config = (lastNumber == 8334 ? tmp += '100k,' : tmp += '500k,');
+    config = (mode == bleUARTMode.LoopBack ? tmp += 'Loopback' : tmp += 'UART');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        //const Text('BLE UART Demo', style: TextStyle(color: Colors.blue)),
-        ListTile(
+        /*ListTile(
         title: const Text('BLE UART Demo'),
         titleTextStyle: TextStyle(color: Colors.blue),
         trailing: IconButton(
           icon: const Icon(Icons.settings),
           onPressed: onClearBleData,
-        )),
+        )),*/
+        ExpansionTile(
+            title: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(config, style: TextStyle(color: Colors.red)),
+              ],
+            ),
+            children: <Widget>[
+              ElevatedButton(onPressed: onClearBleData, child: Text('Clear Data')),
+              Row(children: <Widget>[
+                ElevatedButton(
+                  onPressed: () async {
+                    /*mode = bleUARTMode.LoopBack;
+                    if (mounted) {
+                      setState(() {});
+                    }*/
+                    if(mode == bleUARTMode.UART){
+                      print('Change to Loopback mode');
+                      //mode = bleUARTMode.UART;
+                      if(initialState == bleUARTState.Complete){
+                        initialState = bleUARTState.UartEnable;
+                        mode = bleUARTMode.LoopBack;
+                        await onWritePressed(c);
+                        //mode = bleUARTMode.LoopBack;
+                      }else if(initialState == bleUARTState.FlowControl){
+                        mode = bleUARTMode.LoopBack;
+                      }
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    }
+                  }, 
+                  child: Text('Loopback mode')),
+                ElevatedButton(
+                  onPressed: () async {
+                    if(mode == bleUARTMode.LoopBack){
+                      print('Change to UART mode');
+                      if(initialState == bleUARTState.Complete){
+                        initialState = bleUARTState.UartEnable;
+                        mode = bleUARTMode.UART;
+                        await onWritePressed(c);
+                        //mode = bleUARTMode.UART;
+                      }else if(initialState == bleUARTState.FlowControl){
+                        mode = bleUARTMode.UART;
+                      }
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    }
+                  }, 
+                  child: Text('UART Mode')),
+              ],),
+              Row(children: <Widget>[
+                ElevatedButton(
+                  onPressed: (){
+                    lastNumber = 8334;
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  }, 
+                  child: Text('100k.txt')),
+                ElevatedButton(
+                  onPressed: (){
+                    lastNumber = 41667;
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  }, 
+                  child: Text('500k.txt')),
+              ],),
+              //ElevatedButton(onPressed: onClearBleData, child: Text('Set Loopbacl Mode')),
+              /*
+              ListTile(
+                title: const Text('Clear Data'),
+                titleTextStyle: TextStyle(color: Colors.blue),
+                trailing: IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: onClearBleData,
+              )),*/
+            ],
+        ),
         ListTile(
           title: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -390,10 +487,11 @@ class _BleUartTileState extends State<BleUartTile> {
   final growableList = <int>[];
   int totalWrite = 0;
   int totalRead = 0;
+  int lastNumber = 8334;
 
-  void CreateTestFile() {
-    int k = 50;
-    k = 8334;
+  void CreateTestFile({int lastNum = 8334}) {
+    //int k = 50;
+    //k = 8334;
     //k = 41667;
     //50,1k.txt
     //834,10k.txt
@@ -402,7 +500,8 @@ class _BleUartTileState extends State<BleUartTile> {
 
     growableList.clear();
 
-    for (int i = 0; i < k; i++) {
+    //for (int i = 0; i < k; i++) {
+    for (int i = 0; i < lastNum; i++) {
       for (int j = 0; j < (10 - (i + 1).toString().length); j++) {
         growableList.add(48);
       }
