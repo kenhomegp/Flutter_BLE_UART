@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -46,6 +47,12 @@ class _BleUartTileState extends State<BleUartTile> {
 
   int _credit = 0x00;
 
+  TextButton autoControlButton  = TextButton(
+                onPressed: (){
+                  print("Test");
+                },
+                child: Text('Test'));
+
   @override
   void initState() {
     super.initState();
@@ -76,15 +83,20 @@ class _BleUartTileState extends State<BleUartTile> {
               print("0x80,0x05,0x04,0x01 command complete. credit = " + _credit.toString());
               if(mode == bleUARTMode.UART){
                 initialState = bleUARTState.Complete;
+                onClearBleData();
+                Snackbar.show(ABC.c, "UART mode", success: true);
               }
               else{
                 initialState = bleUARTState.Start;
+                onWritePressed(c);
               }
-              onWritePressed(c);
+              //onWritePressed(c);
             }
             else if (eq(_value, [0x80, 0x05, 0x01])) {
               print("0x80,0x05,0x01 command complete. credit = " + _credit.toString());
               initialState = bleUARTState.Complete;
+              onClearBleData();
+              Snackbar.show(ABC.c, "Loopback mode", success: true);
             }
           }
 
@@ -106,6 +118,10 @@ class _BleUartTileState extends State<BleUartTile> {
               if(_credit > 16){ //Chimera
                 print("credit error!  > 16");
               }
+
+              _value.clear();
+              _value.add(_credit);
+
               if(tmp == 0){
                 Future.delayed(const Duration(milliseconds: 10), (){
                   print("delay 10 ms");
@@ -166,6 +182,19 @@ class _BleUartTileState extends State<BleUartTile> {
       else{
         //_txValue.clear();
       }
+    });
+
+    Timer(Duration(seconds: 3), () async{
+      print("bleUart initState.delay 3 sec");
+      //autoControlButton.onPressed!();
+      await onSubscribePressed(c);
+      print("control characteristic Subscribe");
+      sleep(Duration(seconds:1));
+      await onSubscribePressed(d);
+      print("rx characteristic Subscribe");
+      sleep(Duration(seconds:1));
+      await onWritePressed(c);
+      print("ble uart init process");
     });
 
     //if (mounted) {
@@ -261,21 +290,27 @@ class _BleUartTileState extends State<BleUartTile> {
         else if (initialState == bleUARTState.TRP) {
           print("TRP mode");
           await char.write([0x80, 0x05, 0x04, 0x01], withoutResponse: c.properties.write);
-          Snackbar.show(ABC.c, "Send TRP command", success: true);
+          //Snackbar.show(ABC.c, "Send TRP command", success: true);
         } else if (initialState == bleUARTState.Complete) {
           print("Initial complete. credit = " + _credit.toString());
         } else if (initialState == bleUARTState.Start) {
           print("Data start");
           await char.write([0x80, 0x05, 0x01], withoutResponse: c.properties.write);
-          Snackbar.show(ABC.c, "Data start ", success: true);
+          //Snackbar.show(ABC.c, "Data start ", success: true);
         }
       } else {
         if (char.characteristicUuid == Guid.fromString("49535343-8841-43F4-A8D4-ECBE34729BB3")) {
-          CreateTestFile(lastNum: lastNumber);
-          print("Send 1k.txt");
-          totalWrite = 0;
-          //await c.splitWrite(growableList);
-          await splitWrite(char, growableList);
+          //print("Send test file");
+          if(_credit == 0){
+            print("Error. No credit.");
+          }else{
+            _value.clear;
+            _value.add(_credit);
+            CreateTestFile(lastNum: lastNumber);
+            print("Send test file");
+            totalWrite = 0;
+            await splitWrite(char, growableList);
+          }
         }
 
         //Snackbar.show(ABC.c, "Write: Success", success: true);
@@ -328,7 +363,7 @@ class _BleUartTileState extends State<BleUartTile> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(config, style: TextStyle(color: Colors.red)),
+                Text(config, style: TextStyle(color: Colors.blue)),
               ],
             ),
             children: <Widget>[
@@ -431,7 +466,13 @@ class _BleUartTileState extends State<BleUartTile> {
                     setState(() {});
                   }
                 },
-                child: Text(c_isNotifying ? "Unsubscribe" : "Subscribe"))
+                child: Text(c_isNotifying ? "Unsubscribe" : "Subscribe")),
+            TextButton(
+                onPressed: () {
+                  onClearBleData();
+                },
+                child: Text('Clear')),
+            //autoControlButton
           ]),
           contentPadding: const EdgeInsets.all(0.0),
         ),

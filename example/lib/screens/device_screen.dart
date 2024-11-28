@@ -323,7 +323,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
           onPressed: _isConnecting ? onCancelPressed : (isConnected ? onDisconnectPressed : onConnectPressed),
           child: Text(
             _isConnecting ? "CANCEL" : (isConnected ? "DISCONNECT" : "CONNECT"),
-            style: Theme.of(context).primaryTextTheme.labelLarge?.copyWith(color: Colors.white),
+            style: Theme.of(context).primaryTextTheme.labelLarge?.copyWith(color: Colors.red),
           ))
     ]);
   }
@@ -344,7 +344,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
               ListTile(
                 leading: buildRssiTile(context),
                 title: Text('Device is ${_connectionState.toString().split('.')[1]}.'),
-                trailing: buildGetServices(context),
+                //trailing: buildGetServices(context),
               ),
               buildMtuTile(context),
               //BleUartTile(service:transparentService! , transparentCtrl: transparentCtrl!, transparentTx: transparentTx!, transparentRx: transparentRx!),
