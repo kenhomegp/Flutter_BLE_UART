@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
 
@@ -8,6 +9,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import "../utils/snackbar.dart";
 
 import 'package:collection/collection.dart';
+
 
 class BleUartTile extends StatefulWidget {
   final BluetoothService service;
@@ -46,6 +48,13 @@ class _BleUartTileState extends State<BleUartTile> {
   var mode = bleUARTMode.LoopBack;
 
   int _credit = 0x00;
+
+  var timeTxStart = DateTime.now();
+  var timeTxEnd = DateTime.now();
+
+  var timeRxStart = DateTime.now();
+  var timeRxEnd = DateTime.now();
+
 
   TextButton autoControlButton  = TextButton(
                 onPressed: (){
@@ -123,11 +132,11 @@ class _BleUartTileState extends State<BleUartTile> {
               _value.add(_credit);
 
               if(tmp == 0){
-                Future.delayed(const Duration(milliseconds: 10), (){
-                  print("delay 10 ms");
-                  if(totalWrite != 0 && totalWrite < growableList.length){
+                Future.delayed(const Duration(milliseconds: 1), (){
+                  print("delay 1ms");
+                  if(totalWrite != 0 && totalWrite < bleDataList.length){
                     print("Credit = 0.Continue. totalWrite = " + totalWrite.toString());
-                    splitWrite(e, growableList);
+                    splitWrite(e, bleDataList);
                   }
                 });
               }
@@ -146,9 +155,17 @@ class _BleUartTileState extends State<BleUartTile> {
 
     //_lastRxValueSubscription = widget.transparentRx.lastValueStream.listen((value) {
     _lastRxValueSubscription = widget.transparentRx.onValueReceived.listen((value) {
-      _rxValue += value;
+      //_rxValue += value;
       if (widget.transparentRx.characteristicUuid.str == "49535343-1e4d-4bd9-ba61-23c647249616") {
         print("BleUart_Rx. onValueReceived.len = " + _rxValue.length.toString());
+        if(_rxValue.isEmpty){
+          timeRxStart = DateTime.now();
+        }
+        _rxValue += value;
+        //print("BleUart_Rx. onValueReceived.len = " + _rxValue.length.toString());
+
+        testTimeThroughput();
+
         if (mounted) {
           setState(() {});
         }
@@ -161,7 +178,7 @@ class _BleUartTileState extends State<BleUartTile> {
         //print(initialState);
         if (initialState == bleUARTState.Complete) {
           print("BleUart_Tx. DidWriteCharacteristic. " + _txValue.length.toString());
-          print(totalWrite.toString() + "," + growableList.length.toString());
+          print(totalWrite.toString() + "," + bleDataList.length.toString());
           if (mounted) {
             setState(() {});
           }
@@ -184,8 +201,8 @@ class _BleUartTileState extends State<BleUartTile> {
       }
     });
 
-    Timer(Duration(seconds: 3), () async{
-      print("bleUart initState.delay 3 sec");
+    Timer(Duration(seconds: 1), () async{
+      print("bleUart initState.delay 1 sec");
       //autoControlButton.onPressed!();
       await onSubscribePressed(c);
       print("control characteristic Subscribe");
@@ -239,7 +256,7 @@ class _BleUartTileState extends State<BleUartTile> {
 
   Future<void> splitWrite(BluetoothCharacteristic char, List<int> value, {int timeout = 15}) async {
     int chunk = min(c.device.mtuNow - 3, 512);
-    print("File length = " + growableList.length.toString());
+    print("File length = " + bleDataList.length.toString());
     print("SplitWrite. credit = " + _credit.toString());
 
     //_txValue.clear();
@@ -266,6 +283,9 @@ class _BleUartTileState extends State<BleUartTile> {
         break;
       }
     }
+
+    testTimeThroughput();
+
     //print("splitWrite is completed.");
   }
 
@@ -307,9 +327,11 @@ class _BleUartTileState extends State<BleUartTile> {
             _value.clear;
             _value.add(_credit);
             CreateTestFile(lastNum: lastNumber);
-            print("Send test file");
+            print("Send data..");
             totalWrite = 0;
-            await splitWrite(char, growableList);
+            timeTxStart = DateTime.now();
+            await splitWrite(char, bleDataList);
+            //testTimeThroughput();
           }
         }
 
@@ -322,6 +344,27 @@ class _BleUartTileState extends State<BleUartTile> {
     } catch (e) {
       Snackbar.show(ABC.c, prettyException("Write Error:", e), success: false);
       //print("Write error");
+    }
+  }
+
+  void testTimeThroughput(){
+    if(totalWrite == bleDataList.length){
+      timeTxEnd = DateTime.now();
+      Duration duration = timeTxEnd.difference(timeTxStart);
+      print('[Tx]time calculation..');
+      print(duration.inMilliseconds);
+      double speed = (totalWrite.toDouble()/1024)/(duration.inMilliseconds.toDouble()/1000);
+      print(speed);
+    }
+
+
+    if(_rxValue.length == bleDataList.length && bleUARTState == bleUARTMode.LoopBack){
+      timeRxEnd = DateTime.now();
+      Duration duration = timeRxEnd.difference(timeRxStart);
+      print('[Rx]time calculation..');
+      print(duration.inMilliseconds);
+      double speed = (bleDataList.length.toDouble()/1024)/(duration.inMilliseconds.toDouble()/1000);
+      print(speed);
     }
   }
 
@@ -525,7 +568,7 @@ class _BleUartTileState extends State<BleUartTile> {
     );
   }
 
-  final growableList = <int>[];
+  final bleDataList = <int>[];
   int totalWrite = 0;
   int totalRead = 0;
   int lastNumber = 8334;
@@ -539,15 +582,15 @@ class _BleUartTileState extends State<BleUartTile> {
     //8334,100k.txt
     //41667,500k.txt
 
-    growableList.clear();
+    bleDataList.clear();
 
     //for (int i = 0; i < k; i++) {
     for (int i = 0; i < lastNum; i++) {
       for (int j = 0; j < (10 - (i + 1).toString().length); j++) {
-        growableList.add(48);
+        bleDataList.add(48);
       }
-      growableList.addAll((i + 1).toString().codeUnits);
-      growableList.addAll([0x0d, 0x0a]);
+      bleDataList.addAll((i + 1).toString().codeUnits);
+      bleDataList.addAll([0x0d, 0x0a]);
     }
   }
 }
