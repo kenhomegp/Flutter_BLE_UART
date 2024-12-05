@@ -11,7 +11,8 @@ import 'screens/bluetooth_off_screen.dart';
 import 'screens/scan_screen.dart';
 
 void main() {
-  FlutterBluePlus.setLogLevel(LogLevel.verbose, color: true);
+  //FlutterBluePlus.setLogLevel(LogLevel.verbose, color: true);
+  FlutterBluePlus.setLogLevel(LogLevel.none, color: true);
   runApp(const FlutterBlueApp());
 }
 

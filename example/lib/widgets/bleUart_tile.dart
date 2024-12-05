@@ -10,7 +10,6 @@ import "../utils/snackbar.dart";
 
 import 'package:collection/collection.dart';
 
-
 class BleUartTile extends StatefulWidget {
   final BluetoothService service;
 
@@ -32,7 +31,7 @@ class BleUartTile extends StatefulWidget {
 
 enum bleUARTState { FlowControl, UartEnable, TRP, Start, Complete }
 
-enum bleUARTMode { UART, LoopBack}
+enum bleUARTMode { UART, LoopBack }
 
 class _BleUartTileState extends State<BleUartTile> {
   List<int> _value = [];
@@ -55,12 +54,15 @@ class _BleUartTileState extends State<BleUartTile> {
   var timeRxStart = DateTime.now();
   var timeRxEnd = DateTime.now();
 
+  String rx_str = "";
+  String tx_str = "";
+  bool result = false;
 
-  TextButton autoControlButton  = TextButton(
-                onPressed: (){
-                  print("Test");
-                },
-                child: Text('Test'));
+  TextButton autoControlButton = TextButton(
+      onPressed: () {
+        print("Test");
+      },
+      child: Text('Test'));
 
   @override
   void initState() {
@@ -80,28 +82,25 @@ class _BleUartTileState extends State<BleUartTile> {
           Function eq = const ListEquality().equals;
 
           if (_value.isNotEmpty) {
-            if(eq(_value, [0x14])){
+            if (eq(_value, [0x14])) {
               print("0x14 command complete. credit= " + _credit.toString());
-            }
-            else if ((eq(_value, [0x80, 0x04, 0x01])) || (eq(_value, [0x80, 0x02, 0x01]))) {
+            } else if ((eq(_value, [0x80, 0x04, 0x01])) || (eq(_value, [0x80, 0x02, 0x01]))) {
               //print("0x80,0x04,0x01 command complete. credit= " + _credit.toString());
               print("BLE UART command complete. credit= " + _credit.toString());
               initialState = bleUARTState.TRP;
               onWritePressed(c);
             } else if (eq(_value, [0x80, 0x05, 0x04, 0x01])) {
               print("0x80,0x05,0x04,0x01 command complete. credit = " + _credit.toString());
-              if(mode == bleUARTMode.UART){
+              if (mode == bleUARTMode.UART) {
                 initialState = bleUARTState.Complete;
                 onClearBleData();
                 Snackbar.show(ABC.c, "UART mode", success: true);
-              }
-              else{
+              } else {
                 initialState = bleUARTState.Start;
                 onWritePressed(c);
               }
               //onWritePressed(c);
-            }
-            else if (eq(_value, [0x80, 0x05, 0x01])) {
+            } else if (eq(_value, [0x80, 0x05, 0x01])) {
               print("0x80,0x05,0x01 command complete. credit = " + _credit.toString());
               initialState = bleUARTState.Complete;
               onClearBleData();
@@ -124,17 +123,18 @@ class _BleUartTileState extends State<BleUartTile> {
               var tmp = _credit;
               _credit += _value[4];
               print("Credit = " + _credit.toString());
-              if(_credit > 16){ //Chimera
+              if (_credit > 16) {
+                //Chimera
                 print("credit error!  > 16");
               }
 
               _value.clear();
               _value.add(_credit);
 
-              if(tmp == 0){
-                Future.delayed(const Duration(milliseconds: 1), (){
+              if (tmp == 0) {
+                Future.delayed(const Duration(milliseconds: 1), () {
                   print("delay 1ms");
-                  if(totalWrite != 0 && totalWrite < bleDataList.length){
+                  if (totalWrite != 0 && totalWrite < bleDataList.length) {
                     print("Credit = 0.Continue. totalWrite = " + totalWrite.toString());
                     splitWrite(e, bleDataList);
                   }
@@ -158,7 +158,7 @@ class _BleUartTileState extends State<BleUartTile> {
       //_rxValue += value;
       if (widget.transparentRx.characteristicUuid.str == "49535343-1e4d-4bd9-ba61-23c647249616") {
         print("BleUart_Rx. onValueReceived.len = " + _rxValue.length.toString());
-        if(_rxValue.isEmpty){
+        if (_rxValue.isEmpty) {
           timeRxStart = DateTime.now();
         }
         _rxValue += value;
@@ -195,21 +195,20 @@ class _BleUartTileState extends State<BleUartTile> {
         else{
           _txValue = value;
         }*/
-      }
-      else{
+      } else {
         //_txValue.clear();
       }
     });
 
-    Timer(Duration(seconds: 1), () async{
+    Timer(Duration(seconds: 1), () async {
       print("bleUart initState.delay 1 sec");
       //autoControlButton.onPressed!();
       await onSubscribePressed(c);
       print("control characteristic Subscribe");
-      sleep(Duration(seconds:1));
+      sleep(Duration(seconds: 1));
       await onSubscribePressed(d);
       print("rx characteristic Subscribe");
-      sleep(Duration(seconds:1));
+      sleep(Duration(seconds: 1));
       await onWritePressed(c);
       print("ble uart init process");
     });
@@ -262,7 +261,7 @@ class _BleUartTileState extends State<BleUartTile> {
     //_txValue.clear();
 
     while (totalWrite < value.length) {
-    //if(totalWrite < value.length) {
+      //if(totalWrite < value.length) {
       if (_credit > 0) {
         List<int> subvalue = value.sublist(totalWrite, min(totalWrite + chunk, value.length));
         print("splitWrite len = " + subvalue.length.toString());
@@ -297,17 +296,16 @@ class _BleUartTileState extends State<BleUartTile> {
           await char.write([0x14], withoutResponse: char.properties.write);
           Snackbar.show(ABC.c, "Enable ReliableBurstTransmit", success: true);
         } else if (initialState == bleUARTState.UartEnable) {
-          if(mode == bleUARTMode.UART){
+          if (mode == bleUARTMode.UART) {
             print("Send UART mode command");
             await char.write([0x80, 0x04, 0x01], withoutResponse: c.properties.write);
             Snackbar.show(ABC.c, "UART mode enable", success: true);
-          }else{
+          } else {
             print("Send Loopback mode command");
             await char.write([0x80, 0x02, 0x01], withoutResponse: c.properties.write);
             Snackbar.show(ABC.c, "Loopback mode enable", success: true);
           }
-        }
-        else if (initialState == bleUARTState.TRP) {
+        } else if (initialState == bleUARTState.TRP) {
           print("TRP mode");
           await char.write([0x80, 0x05, 0x04, 0x01], withoutResponse: c.properties.write);
           //Snackbar.show(ABC.c, "Send TRP command", success: true);
@@ -321,9 +319,9 @@ class _BleUartTileState extends State<BleUartTile> {
       } else {
         if (char.characteristicUuid == Guid.fromString("49535343-8841-43F4-A8D4-ECBE34729BB3")) {
           //print("Send test file");
-          if(_credit == 0){
+          if (_credit == 0) {
             print("Error. No credit.");
-          }else{
+          } else {
             _value.clear;
             _value.add(_credit);
             CreateTestFile(lastNum: lastNumber);
@@ -347,32 +345,56 @@ class _BleUartTileState extends State<BleUartTile> {
     }
   }
 
-  void testTimeThroughput(){
-    if(totalWrite == bleDataList.length){
+  void testTimeThroughput() {
+    //String rx_str = "";
+    //String tx_str = "";
+
+    if (totalWrite == bleDataList.length) {
       timeTxEnd = DateTime.now();
       Duration duration = timeTxEnd.difference(timeTxStart);
       print('[Tx]time calculation..');
       print(duration.inMilliseconds);
-      double speed = (totalWrite.toDouble()/1024)/(duration.inMilliseconds.toDouble()/1000);
-      print(speed);
+      double speed = (totalWrite.toDouble() / 1024) / (duration.inMilliseconds.toDouble() / 1000);
+      print('Tx_throughput: ' + speed.toString());
+      //tx_str = speed.toString() + ' KB/s';
+      tx_str = speed.toStringAsFixed(2) + ' KB/s';
     }
 
-
-    if(_rxValue.length == bleDataList.length && bleUARTState == bleUARTMode.LoopBack){
+    if (_rxValue.length == bleDataList.length && mode == bleUARTMode.LoopBack) {
       timeRxEnd = DateTime.now();
       Duration duration = timeRxEnd.difference(timeRxStart);
       print('[Rx]time calculation..');
       print(duration.inMilliseconds);
-      double speed = (bleDataList.length.toDouble()/1024)/(duration.inMilliseconds.toDouble()/1000);
-      print(speed);
+      double speed = (bleDataList.length.toDouble() / 1024) / (duration.inMilliseconds.toDouble() / 1000);
+      //print(speed);
+      if (_rxValue.equals(bleDataList)) {
+        print('Data compared: Pass');
+        result = true;
+      } else {
+        print('Data compared: Fail');
+        result = false;
+      }
+
+      print('Rx_throughput_KB/s: ' + speed.toString());
+      //rx_str = speed.toString() + ' KB/s';
+      rx_str = speed.toStringAsFixed(2) + ' KB/s';
+
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
-  void onClearBleData(){
+  void onClearBleData() {
     print("Clear ble data");
     totalWrite = 0;
     _rxValue.clear();
     _txValue.clear();
+    rx_str = "";
+    tx_str = "";
+    result = false;
+
+    //showToastMessage("Hello");
 
     if (mounted) {
       setState(() {});
@@ -390,6 +412,15 @@ class _BleUartTileState extends State<BleUartTile> {
     config = (lastNumber == 8334 ? tmp += '100k,' : tmp += '500k,');
     config = (mode == bleUARTMode.LoopBack ? tmp += 'Loopback' : tmp += 'UART');
 
+    String resultStr = '';
+    if (rx_str.isNotEmpty) {
+      if (result) {
+        resultStr = 'Pass';
+      } else {
+        resultStr = 'Fail';
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -402,78 +433,82 @@ class _BleUartTileState extends State<BleUartTile> {
           onPressed: onClearBleData,
         )),*/
         ExpansionTile(
-            title: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(config, style: TextStyle(color: Colors.blue)),
-              ],
-            ),
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              ElevatedButton(onPressed: onClearBleData, child: Text('Clear Data')),
-              Row(children: <Widget>[
+              Text(config, style: TextStyle(color: Colors.blue)),
+            ],
+          ),
+          children: <Widget>[
+            ElevatedButton(onPressed: onClearBleData, child: Text('Clear Data')),
+            Row(
+              children: <Widget>[
                 ElevatedButton(
-                  onPressed: () async {
-                    /*mode = bleUARTMode.LoopBack;
+                    onPressed: () async {
+                      /*mode = bleUARTMode.LoopBack;
                     if (mounted) {
                       setState(() {});
                     }*/
-                    if(mode == bleUARTMode.UART){
-                      print('Change to Loopback mode');
-                      //mode = bleUARTMode.UART;
-                      if(initialState == bleUARTState.Complete){
-                        initialState = bleUARTState.UartEnable;
-                        mode = bleUARTMode.LoopBack;
-                        await onWritePressed(c);
-                        //mode = bleUARTMode.LoopBack;
-                      }else if(initialState == bleUARTState.FlowControl){
-                        mode = bleUARTMode.LoopBack;
-                      }
-                      if (mounted) {
-                        setState(() {});
-                      }
-                    }
-                  }, 
-                  child: Text('Loopback mode')),
-                ElevatedButton(
-                  onPressed: () async {
-                    if(mode == bleUARTMode.LoopBack){
-                      print('Change to UART mode');
-                      if(initialState == bleUARTState.Complete){
-                        initialState = bleUARTState.UartEnable;
-                        mode = bleUARTMode.UART;
-                        await onWritePressed(c);
+                      if (mode == bleUARTMode.UART) {
+                        print('Change to Loopback mode');
                         //mode = bleUARTMode.UART;
-                      }else if(initialState == bleUARTState.FlowControl){
-                        mode = bleUARTMode.UART;
+                        if (initialState == bleUARTState.Complete) {
+                          initialState = bleUARTState.UartEnable;
+                          mode = bleUARTMode.LoopBack;
+                          await onWritePressed(c);
+                          //mode = bleUARTMode.LoopBack;
+                        } else if (initialState == bleUARTState.FlowControl) {
+                          mode = bleUARTMode.LoopBack;
+                        }
+                        if (mounted) {
+                          setState(() {});
+                        }
                       }
+                    },
+                    child: Text('Loopback mode')),
+                ElevatedButton(
+                    onPressed: () async {
+                      if (mode == bleUARTMode.LoopBack) {
+                        print('Change to UART mode');
+                        if (initialState == bleUARTState.Complete) {
+                          initialState = bleUARTState.UartEnable;
+                          mode = bleUARTMode.UART;
+                          await onWritePressed(c);
+                          //mode = bleUARTMode.UART;
+                        } else if (initialState == bleUARTState.FlowControl) {
+                          mode = bleUARTMode.UART;
+                        }
+                        if (mounted) {
+                          setState(() {});
+                        }
+                      }
+                    },
+                    child: Text('UART Mode')),
+              ],
+            ),
+            Row(
+              children: <Widget>[
+                ElevatedButton(
+                    onPressed: () {
+                      lastNumber = 8334;
                       if (mounted) {
                         setState(() {});
                       }
-                    }
-                  }, 
-                  child: Text('UART Mode')),
-              ],),
-              Row(children: <Widget>[
+                    },
+                    child: Text('100k.txt')),
                 ElevatedButton(
-                  onPressed: (){
-                    lastNumber = 8334;
-                    if (mounted) {
-                      setState(() {});
-                    }
-                  }, 
-                  child: Text('100k.txt')),
-                ElevatedButton(
-                  onPressed: (){
-                    lastNumber = 41667;
-                    if (mounted) {
-                      setState(() {});
-                    }
-                  }, 
-                  child: Text('500k.txt')),
-              ],),
-              //ElevatedButton(onPressed: onClearBleData, child: Text('Set Loopbacl Mode')),
-              /*
+                    onPressed: () {
+                      lastNumber = 41667;
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    },
+                    child: Text('500k.txt')),
+              ],
+            ),
+            //ElevatedButton(onPressed: onClearBleData, child: Text('Set Loopbacl Mode')),
+            /*
               ListTile(
                 title: const Text('Clear Data'),
                 titleTextStyle: TextStyle(color: Colors.blue),
@@ -481,7 +516,7 @@ class _BleUartTileState extends State<BleUartTile> {
                 icon: const Icon(Icons.clear),
                 onPressed: onClearBleData,
               )),*/
-            ],
+          ],
         ),
         ListTile(
           title: Column(
@@ -562,6 +597,18 @@ class _BleUartTileState extends State<BleUartTile> {
                 },
                 child: Text(d_isNotifying ? "Unsubscribe" : "Subscribe"))
           ]),
+          contentPadding: const EdgeInsets.all(0.0),
+        ),
+        ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text("Result: " + resultStr),
+              Text('Throughput_tx: ' + tx_str),
+              Text('Throughput_rx: ' + rx_str)
+            ],
+          ),
           contentPadding: const EdgeInsets.all(0.0),
         )
       ],
